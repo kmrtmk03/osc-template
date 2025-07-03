@@ -20,16 +20,23 @@ const OscClient = ({ webSocketUrl }: OscClientProps) => {
     sendOscMessage,
   } = useOscClient(webSocketUrl);
 
-  // ボタンクリック時に送信するメッセージを定義
-  const handleSendClick = () => {
-    const msg = {
-      address: "/hello",
+  // SuperColliderにメッセージを送信する
+  const handleSendToScClick = () => {
+    sendOscMessage({
+      address: "/test/1",
       args: [
-        { type: "s", value: "Hello, OSC!" },
-        { type: "f", value: 440.0 },
+        { type: "s", value: "default" },
+        { type: "f", value: Math.random() * 400 + 200 }, // 200-600Hzのランダムな周波数
       ],
-    };
-    sendOscMessage(msg);
+    });
+  };
+
+  // VRChatにメッセージを送信する
+  const handleSendToVrcClick = () => {
+    sendOscMessage({
+      address: "/test/2",
+      args: [{ type: "f", value: Math.random() }], // 0.0-1.0のランダムな値
+    });
   };
 
   // コンポーネントのUIをレンダリングする。
@@ -48,7 +55,8 @@ const OscClient = ({ webSocketUrl }: OscClientProps) => {
             ))
           : <p>・なし</p>}
       </div>
-      <button onClick={handleSendClick}>OSCを送る</button>
+      <button onClick={handleSendToScClick}>test1に送信</button>
+      <button onClick={handleSendToVrcClick}>test2に送信</button>
     </div>
   );
 };

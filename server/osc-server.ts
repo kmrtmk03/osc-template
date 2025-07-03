@@ -18,24 +18,53 @@ const wss = new WebSocketServer({ server });
 server.listen(8081, "0.0.0.0", () => {
   console.log("WSS server running on wss://192.168.11.8:8081");
 });
-
 // ===== OSC (UDP) ポート =====
 const udpPort = new osc.UDPPort({
+  // このサーバーがOSCメッセージを受信するためにリッスンするIPアドレスとポート
   localAddress: "0.0.0.0",
-  localPort: 57121,       // 受信用
-  remoteAddress: "192.168.11.8",
-  remotePort: 57121,      // 送信先 (SuperCollider など)
-  metadata: true,         // 型情報付き
+  localPort: 6668,
+  // OSCメッセージの引数に型情報を含める設定
+  metadata: true,
 });
+
+// UDPポートを開き、メッセージの送受信を開始
 udpPort.open();
+
+// ルーティングテーブル: OSCアドレスのプレフィックスと送信先をマッピングします。
+// ルールは上から順に評価され、最初に一致したものが使われます。
+const oscRoutes = [
+  {
+    prefix: "/test/1",
+    target: { name: "Test1", address: "192.168.11.8", port: 6668 },
+  },
+  {
+    prefix: "/test/2",
+    target: { name: "Test2", address: "192.168.11.8", port: 6668 },
+  },
+];
 
 // ----- WSS → OSC -----
 wss.on("connection", (ws) => {
   ws.on("message", (data) => {
     try {
       const msg = JSON.parse(data.toString());
-      if (isOscMessage(msg)) udpPort.send(msg);
-      console.log(msg)
+      if (isOscMessage(msg)) {
+        // ルーティングテーブルから、OSCアドレスに一致するルールを検索
+        const route = oscRoutes.find((r) => msg.address.startsWith(r.prefix));
+
+        if (route) {
+          // 一致するルートが見つかった場合、その宛先に送信
+          const { name, address, port } = route.target;
+          udpPort.send(msg, address, port);
+          console.log(
+            `Message routed to ${name} (${address}:${port}):`,
+            msg
+          );
+        } else {
+          // どのルートにも一致しなかった場合
+          console.log("No route found for message. Not sent:", msg);
+        }
+      }
     } catch (err) {
       console.error("Invalid message:", err);
     }
